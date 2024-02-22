@@ -16,7 +16,7 @@ app.get('/search', async (req, res) => {
         const page = await browser.newPage();
         await page.goto('https://www.google.com/search?q=top+home+listing+websites+zillow');
 
-        await page.waitForSelector('#search', { timeout: 5000 });
+        await page.waitForSelector('#search', {timeout: 5000});
         const hrefs = await page.evaluate(() => {
             const xpathSelector = '//*[@id="search"]//a';
             const targetElements = document.evaluate(xpathSelector, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
@@ -32,19 +32,40 @@ app.get('/search', async (req, res) => {
 
             return hrefList;
         });
-        console.log(hrefs[0]);
-        await page.goto('https://www.zillow.com');
 
+        const zillowRegex = /^https:\/\/www\.zillow\.com\//;
+
+        let searchSites = [];
+
+        for (let i = 0; i < hrefs.length; i++) {
+            let match = zillowRegex.test(hrefs[i]);
+            if (zillowRegex.exec(hrefs[i])) {
+                let regexResult = zillowRegex.exec(hrefs[i]);
+                searchSites.push(regexResult[0])
+
+            }
+        }
+
+        const uniqueSetSeachSite = new Set(searchSites);
+        const uniqueSearchSite = Array.from(uniqueSetSeachSite).slice(0, 5);
+        console.log(uniqueSearchSite)
+        await page.goto(uniqueSearchSite[0]);
+        // await page.goto(hrefs[0]);
+        //
         await page.waitForSelector("#search-bar input", { timeout: 1000 });
 
         await page.focus("#search-bar input");
-
+        // @ts-ignore
         await page.keyboard.type(searchTerm);
 
         await page.keyboard.press('Enter');
 
-        const btnQstn = await page.waitForSelector('::-p-xpath(//*[text()="Skip this question"])', { timeout: 4000 });
-        await btnQstn.click();
+        try {
+            const btnQstn = await page.waitForSelector('::-p-xpath(//*[text()="Skip this question"])', { timeout: 4000 });
+            await btnQstn.click();
+        } catch (error) {
+            console.error('Selector not found within the specified timeout. Error:', error.message);
+        }
 
         await page.waitForSelector('#grid-search-results', { timeout: 5000 });
 
